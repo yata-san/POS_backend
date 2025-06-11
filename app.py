@@ -49,35 +49,42 @@ class PurchaseRequest(BaseModel):
 
 @app.post("/purchase")
 def purchase(req: PurchaseRequest):
-    with engine.begin() as conn:
-        # 1. trd_headerにINSERT
-        result = conn.execute(
-            text(
-                "INSERT INTO trd_header (TOTAL_AMT, TOTAL_AMT_EX_TAX) VALUES (:total_amt, :total_amt_ex_tax)"
-            ),
-            {"total_amt": req.total, "total_amt_ex_tax": req.subtotal}
-        )
-        trd_id = result.lastrowid
-
-        # 2. trd_detailに商品ごとにINSERT
-        for idx, item in enumerate(req.items, start=1):
-            conn.execute(
+    print("purchase endpoint called")
+    print("request body:", req)
+    try:
+        with engine.begin() as conn:
+            # 1. trd_headerにINSERT
+            result = conn.execute(
                 text(
-                    """
-                    INSERT INTO trd_detail
-                    (TRD_ID, DTL_ID, PRD_ID, PRD_CODE, PRD_NAME, PRD_PRICE, QUANTITY)
-                    VALUES
-                    (:trd_id, :dtl_id, :prd_id, :prd_code, :prd_name, :prd_price, :quantity)
-                    """
+                    "INSERT INTO trd_header (TOTAL_AMT, TOTAL_AMT_EX_TAX) VALUES (:total_amt, :total_amt_ex_tax)"
                 ),
-                {
-                    "trd_id": trd_id,
-                    "dtl_id": idx,
-                    "prd_id": item.PRD_ID,
-                    "prd_code": item.CODE,
-                    "prd_name": item.NAME,
-                    "prd_price": item.PRICE,
-                    "quantity": item.qty
-                }
+                {"total_amt": req.total, "total_amt_ex_tax": req.subtotal}
             )
-    return {"status": "success", "trd_id": trd_id}
+            trd_id = result.lastrowid
+
+            # 2. trd_detailに商品ごとにINSERT
+            for idx, item in enumerate(req.items, start=1):
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO trd_detail
+                        (TRD_ID, DTL_ID, PRD_ID, PRD_CODE, PRD_NAME, PRD_PRICE, QUANTITY)
+                        VALUES
+                        (:trd_id, :dtl_id, :prd_id, :prd_code, :prd_name, :prd_price, :quantity)
+                        """
+                    ),
+                    {
+                        "trd_id": trd_id,
+                        "dtl_id": idx,
+                        "prd_id": item.PRD_ID,
+                        "prd_code": item.CODE,
+                        "prd_name": item.NAME,
+                        "prd_price": item.PRICE,
+                        "quantity": item.qty
+                    }
+                )
+        print("purchase success")
+        return {"status": "success", "trd_id": trd_id}
+    except Exception as e:
+        print("purchase error:", e)
+        raise
